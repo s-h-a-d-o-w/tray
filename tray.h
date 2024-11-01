@@ -106,7 +106,7 @@ static id _tray_menu(struct tray_menu *m) {
 
     for (; m != NULL && m->text != NULL; m++) {
       if (strcmp(m->text, "-") == 0) {
-        objc_msgSend(menu, sel_registerName("addItem:"), 
+        objc_msgSend(menu, sel_registerName("addItem:"),
           objc_msgSend((id)objc_getClass("NSMenuItem"), sel_registerName("separatorItem")));
       } else {
         id menuItem = objc_msgSend((id)objc_getClass("NSMenuItem"), sel_registerName("alloc"));
@@ -115,14 +115,14 @@ static id _tray_menu(struct tray_menu *m) {
                   objc_msgSend((id)objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), m->text),
                   sel_registerName("menuCallback:"),
                   objc_msgSend((id)objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), ""));
-  
+
         objc_msgSend(menuItem, sel_registerName("setEnabled:"), (m->disabled ? false : true));
           objc_msgSend(menuItem, sel_registerName("setState:"), (m->checked ? 1 : 0));
           objc_msgSend(menuItem, sel_registerName("setRepresentedObject:"),
             objc_msgSend((id)objc_getClass("NSValue"), sel_registerName("valueWithPointer:"), m));
-  
+
           objc_msgSend(menu, sel_registerName("addItem:"), menuItem);
-  
+
           if (m->submenu != NULL) {
             objc_msgSend(menu, sel_registerName("setSubmenu:forItem:"), _tray_menu(m->submenu), menuItem);
       }
@@ -134,7 +134,7 @@ static id _tray_menu(struct tray_menu *m) {
 
 static void menu_callback(id self, SEL cmd, id sender) {
   struct tray_menu *m =
-      (struct tray_menu *)objc_msgSend(objc_msgSend(sender, sel_registerName("representedObject")), 
+      (struct tray_menu *)objc_msgSend(objc_msgSend(sender, sel_registerName("representedObject")),
                   sel_registerName("pointerValue"));
 
     if (m != NULL && m->cb != NULL) {
@@ -145,28 +145,28 @@ static void menu_callback(id self, SEL cmd, id sender) {
 static int tray_init(struct tray *tray) {
     pool = objc_msgSend((id)objc_getClass("NSAutoreleasePool"),
                           sel_registerName("new"));
-  
+
     objc_msgSend((id)objc_getClass("NSApplication"),
                           sel_registerName("sharedApplication"));
-  
+
     Class trayDelegateClass = objc_allocateClassPair(objc_getClass("NSObject"), "Tray", 0);
     class_addProtocol(trayDelegateClass, objc_getProtocol("NSApplicationDelegate"));
     class_addMethod(trayDelegateClass, sel_registerName("menuCallback:"), (IMP)menu_callback, "v@:@");
     objc_registerClassPair(trayDelegateClass);
-  
+
     id trayDelegate = objc_msgSend((id)trayDelegateClass,
                           sel_registerName("new"));
-  
+
     app = objc_msgSend((id)objc_getClass("NSApplication"),
                           sel_registerName("sharedApplication"));
-  
+
     objc_msgSend(app, sel_registerName("setDelegate:"), trayDelegate);
-  
+
     statusBar = objc_msgSend((id)objc_getClass("NSStatusBar"),
                           sel_registerName("systemStatusBar"));
-  
+
     statusItem = objc_msgSend(statusBar, sel_registerName("statusItemWithLength:"), -1.0);
-  
+
     objc_msgSend(statusItem, sel_registerName("retain"));
     objc_msgSend(statusItem, sel_registerName("setHighlightMode:"), true);
     statusBarButton = objc_msgSend(statusItem, sel_registerName("button"));
@@ -176,16 +176,16 @@ static int tray_init(struct tray *tray) {
 }
 
 static int tray_loop(int blocking) {
-    id until = (blocking ? 
-      objc_msgSend((id)objc_getClass("NSDate"), sel_registerName("distantFuture")) : 
+    id until = (blocking ?
+      objc_msgSend((id)objc_getClass("NSDate"), sel_registerName("distantFuture")) :
       objc_msgSend((id)objc_getClass("NSDate"), sel_registerName("distantPast")));
-  
-    id event = objc_msgSend(app, sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:"), 
-                ULONG_MAX, 
-                until, 
-                objc_msgSend((id)objc_getClass("NSString"), 
-                  sel_registerName("stringWithUTF8String:"), 
-                  "kCFRunLoopDefaultMode"), 
+
+    id event = objc_msgSend(app, sel_registerName("nextEventMatchingMask:untilDate:inMode:dequeue:"),
+                ULONG_MAX,
+                until,
+                objc_msgSend((id)objc_getClass("NSString"),
+                  sel_registerName("stringWithUTF8String:"),
+                  "kCFRunLoopDefaultMode"),
                 true);
     if (event) {
       objc_msgSend(app, sel_registerName("sendEvent:"), event);
@@ -194,8 +194,8 @@ static int tray_loop(int blocking) {
 }
 
 static void tray_update(struct tray *tray) {
-  objc_msgSend(statusBarButton, sel_registerName("setImage:"), 
-    objc_msgSend((id)objc_getClass("NSImage"), sel_registerName("imageNamed:"), 
+  objc_msgSend(statusBarButton, sel_registerName("setImage:"),
+    objc_msgSend((id)objc_getClass("NSImage"), sel_registerName("imageNamed:"),
       objc_msgSend((id)objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), tray->icon)));
 
   objc_msgSend(statusItem, sel_registerName("setMenu:"), _tray_menu(tray->menu));
@@ -204,18 +204,33 @@ static void tray_update(struct tray *tray) {
 static void tray_exit() { objc_msgSend(app, sel_registerName("terminate:"), app); }
 
 #elif defined(TRAY_WINAPI)
+#define UNICODE
+#define _UNICODE
+
 #include <windows.h>
 
 #include <shellapi.h>
 
 #define WM_TRAY_CALLBACK_MESSAGE (WM_USER + 1)
-#define WC_TRAY_CLASS_NAME "TRAY"
+#define WC_TRAY_CLASS_NAME L"TRAY"
 #define ID_TRAY_FIRST 1000
 
 static WNDCLASSEX wc;
 static NOTIFYICONDATA nid;
 static HWND hwnd;
 static HMENU hmenu = NULL;
+
+// Based on: https://stackoverflow.com/a/6693107/5040168
+//
+// NOTE: Call free() on the returned string when you're done!
+wchar_t* toWide(char* str) {
+  int wchars_num = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+
+  wchar_t* wstr = (wchar_t*)malloc(sizeof(wchar_t) * wchars_num);
+  MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, wchars_num);
+
+  return wstr;
+}
 
 static LRESULT CALLBACK _tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
                                        LPARAM lparam) {
@@ -240,8 +255,9 @@ static LRESULT CALLBACK _tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
     break;
   case WM_COMMAND:
     if (wparam >= ID_TRAY_FIRST) {
+      // @s-h-a-d-o-w: No C99 for node-gyp on Windows => no designated initializers
       MENUITEMINFO item = {
-          .cbSize = sizeof(MENUITEMINFO), .fMask = MIIM_ID | MIIM_DATA,
+        sizeof(MENUITEMINFO), MIIM_ID | MIIM_DATA, 0, 0, 0, 0, 0, 0, 0, 0, 0
       };
       if (GetMenuItemInfo(hmenu, wparam, FALSE, &item)) {
         struct tray_menu *menu = (struct tray_menu *)item.dwItemData;
@@ -260,7 +276,7 @@ static HMENU _tray_menu(struct tray_menu *m, UINT *id) {
   HMENU hmenu = CreatePopupMenu();
   for (; m != NULL && m->text != NULL; m++, (*id)++) {
     if (strcmp(m->text, "-") == 0) {
-      InsertMenu(hmenu, *id, MF_SEPARATOR, TRUE, "");
+      InsertMenu(hmenu, *id, MF_SEPARATOR, TRUE, L"");
     } else {
       MENUITEMINFO item;
       memset(&item, 0, sizeof(item));
@@ -279,10 +295,13 @@ static HMENU _tray_menu(struct tray_menu *m, UINT *id) {
         item.fState |= MFS_CHECKED;
       }
       item.wID = *id;
-      item.dwTypeData = m->text;
+
+      wchar_t* text = toWide(m->text);
+      item.dwTypeData = text;
       item.dwItemData = (ULONG_PTR)m;
 
       InsertMenuItem(hmenu, *id, TRUE, &item);
+      free(text);
     }
   }
   return hmenu;
@@ -308,7 +327,7 @@ static int tray_init(struct tray *tray) {
   nid.cbSize = sizeof(NOTIFYICONDATA);
   nid.hWnd = hwnd;
   nid.uID = 0;
-  nid.uFlags = NIF_ICON | NIF_MESSAGE;
+  nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
   nid.uCallbackMessage = WM_TRAY_CALLBACK_MESSAGE;
   Shell_NotifyIcon(NIM_ADD, &nid);
 
@@ -336,12 +355,29 @@ static void tray_update(struct tray *tray) {
   UINT id = ID_TRAY_FIRST;
   hmenu = _tray_menu(tray->menu, &id);
   SendMessage(hwnd, WM_INITMENUPOPUP, (WPARAM)hmenu, 0);
+
   HICON icon;
-  ExtractIconEx(tray->icon, 0, NULL, &icon, 1);
+  wchar_t* iconPath = toWide(tray->icon);
+  int iconsExtracted = ExtractIconEx(iconPath, 0, NULL, &icon, 1);
+  if(iconsExtracted < 1) {
+    printf("No icons found at: %s\n", tray->icon);
+  }
+  free(iconPath);
   if (nid.hIcon) {
     DestroyIcon(nid.hIcon);
   }
   nid.hIcon = icon;
+
+  if (tray->tooltip != 0 && strlen(tray->tooltip) > 0) {
+    wchar_t* wide = toWide(tray->tooltip);
+    wcsncpy(nid.szTip, wide, ARRAYSIZE(nid.szTip));
+    free(wide);
+    nid.szTip[ARRAYSIZE(nid.szTip) - 1] = L'\0';
+  }
+  else {
+    nid.szTip[0] = L'\0';
+  }
+
   Shell_NotifyIcon(NIM_MODIFY, &nid);
 
   if (prevmenu != NULL) {
